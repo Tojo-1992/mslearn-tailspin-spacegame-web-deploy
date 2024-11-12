@@ -2,9 +2,11 @@ trigger:
 - '*'
 
 pool:
-  vmImage: 'ubuntu-20.04'
+  name: SelfAgent
   demands:
   - npm
+
+####### BUILD STAGE ######
 
 variables:
   buildConfiguration: 'Release'
@@ -56,3 +58,28 @@ steps:
 
 - publish: '$(Build.ArtifactStagingDirectory)'
   artifact: drop
+
+##### DEPLOYMENT STAGE ######
+
+- stage: 'Deploy'
+  displayName: 'Deploy the web application'
+  dependsOn: Build
+  jobs:
+  - deployment: Deploy
+    pool:
+      name: SelfAgent
+    environment: dev
+    variables:
+    - group: Release
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - task: AzureWebApp@1
+            displayName: 'Azure App Service Deploy: website'
+            inputs:
+              azureSubscription: 'Resource Manager - Tailspin - Space Game'
+              appName: '$(WebAppName)'
+              package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip'
